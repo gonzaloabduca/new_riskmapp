@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 from scipy.stats import norm
-import pandas_datareader as pdr
 import math
 
 def garman_klass(data, window=252, trading_periods=252, clean=True):
