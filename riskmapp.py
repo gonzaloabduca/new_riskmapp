@@ -738,7 +738,7 @@ short_pct = info.get('shortPercentOfFloat')
 if short_pct is not None:
     float_short = short_pct * 100
 else:
-    float_short = None  # o 0, dependiendo de lo que quieras mostrar
+    float_short = 0
 # Define the labels
 position_size_metrics = [
     'Position Bias',
@@ -761,10 +761,9 @@ position_size_df.loc['Position Bias'] = position_type
 position_size_df.loc['Algorithm Signal'] = signal_data
 position_size_df.loc['Analyst Rating'] = analyst_rating
 position_size_df.loc['Days to Cover'] = f"{days_to_cover} days"
-if not np.isnan(float_short):
-    position_size_df.loc['Float Short %'] = f"{float_short:.2f} %"
-else:
-    position_size_df.loc['Float Short %'] = np.nan
+position_size_df.loc['Float Short %'] = (
+    f"{float_short:.2f} %" if pd.notna(float_short) else np.nan
+)
 position_size_df.loc['Dividend Yield'] = f"{dividend_yield}%"
 position_size_df.loc['Risk Amount'] = f"${round(risk_amount, 2)}"
 position_size_df.loc['Position Size'] = round(position_size, 0)
