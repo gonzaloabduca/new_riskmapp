@@ -761,7 +761,10 @@ position_size_df.loc['Position Bias'] = position_type
 position_size_df.loc['Algorithm Signal'] = signal_data
 position_size_df.loc['Analyst Rating'] = analyst_rating
 position_size_df.loc['Days to Cover'] = f"{days_to_cover} days"
-position_size_df.loc['Float Short %'] = f"{float_short:.2f} %"
+if not np.isnan(float_short):
+    position_size_df.loc['Float Short %'] = f"{float_short:.2f} %"
+else:
+    position_size_df.loc['Float Short %'] = np.nan
 position_size_df.loc['Dividend Yield'] = f"{dividend_yield}%"
 position_size_df.loc['Risk Amount'] = f"${round(risk_amount, 2)}"
 position_size_df.loc['Position Size'] = round(position_size, 0)
