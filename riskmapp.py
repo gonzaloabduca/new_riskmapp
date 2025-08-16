@@ -555,73 +555,105 @@ with col5:
 ######################## INSTITUTIONAL HOLDERS ##############################
 #############################################################################
 
-grades = yf.Ticker(ticker).get_upgrades_downgrades()
+try:
+    # Try fetching the grades
+    grades = yf.Ticker(ticker).get_upgrades_downgrades()
 
-grades = grades.loc[grades.index > datetime.now() - timedelta(days=365)]
+    # Check if the DataFrame is empty
+    if grades is None or grades.empty:
+        st.write("This data is not available.")
+    else:
+        grades = grades.loc[grades.index > datetime.now() - timedelta(days=365)]
 
-grades['Action'] = grades['Action'].replace({
-    'main': 'Maintain',
-    'reit': 'Reiterated',
-    'up': 'Upgrade',
-    'down': 'Downgrade',
-    'init': 'Initiated Coverage'
-})
+        grades['Action'] = grades['Action'].replace({
+            'main': 'Maintain',
+            'reit': 'Reiterated',
+            'up': 'Upgrade',
+            'down': 'Downgrade',
+            'init': 'Initiated Coverage'
+        })
 
-final_grades = grades['Action'].value_counts().to_frame('Count')
+        final_grades = grades['Action'].value_counts().to_frame('Count')
 
-color_map = {
-    'Upgrade': '#00B86B',            # Dollar green
-    'Downgrade': '#FF4C4C',          # Red
-    'Maintain': '#1E90FF',           # Light blue
-    'Reiterated': '#104E8B',         # Dark blue
-    'Initiated Coverage': '#FFA500'  # Orange
-}
+        color_map = {
+            'Upgrade': '#00B86B',            # Dollar green
+            'Downgrade': '#FF4C4C',          # Red
+            'Maintain': '#1E90FF',           # Light blue
+            'Reiterated': '#104E8B',         # Dark blue
+            'Initiated Coverage': '#FFA500'  # Orange
+        }
 
-colors = final_grades.index.map(color_map)
+        colors = final_grades.index.map(color_map)
 
-# Create horizontal bar chart
-fig_grades = go.Figure(go.Bar(
-    x=final_grades['Count'],
-    y=final_grades.index,
-    orientation='h',
-    marker_color=colors
-))
+        # Create horizontal bar chart
+        fig_grades = go.Figure(go.Bar(
+            x=final_grades['Count'],
+            y=final_grades.index,
+            orientation='h',
+            marker_color=colors
+        ))
 
-# Update layout
-fig_grades.update_layout(
-    title=f'Top Institutional Analyst Upgrades/ Downgrades for {company_name}',
-    yaxis=dict(categoryorder='total ascending'),
-    template='plotly_dark',
-    xaxis_title='Number of Analysts',
-    yaxis_title=''
-)
+        fig_grades.update_layout(
+            title=f'Top Institutional Analyst Upgrades/Downgrades for {company_name}',
+            yaxis=dict(categoryorder='total ascending'),
+            template='plotly_dark',
+            xaxis_title='Number of Analysts',
+            yaxis_title=''
+        )
+        with col7:
+                st.plotly_chart(
+                    fig_grades,
+                    use_container_width=True,
+                    key=f"grades_chart_{ticker}_col7"
+                )
+except Exception as e:
+    with col7:
+        st.write("This data is not available.")
 
 
-institutional_holders = yf.Ticker(ticker).get_institutional_holders()
-# Sort by pctHeld descending
-institutional_holders = institutional_holders.sort_values(by='pctHeld', ascending=True)
+try:
+    ih = yf.Ticker(ticker).get_institutional_holders()
 
-# Create horizontal bar chart
-fig_holders = go.Figure(go.Bar(
-    x=institutional_holders['pctHeld']*100,
-    y=institutional_holders['Holder'],
-    orientation='h',
-    marker_color = '#85BB65'
-))
+    # Check for None or empty DataFrame
+    if not isinstance(ih, pd.DataFrame) or ih.empty:
+        with col9:
+            st.write("Institutional holder data not available.")
+    else:
+        # Ensure required columns exist
+        if "pctHeld" not in ih.columns or "Holder" not in ih.columns:
+            with col9:
+                st.write("Required institutional holder fields missing.")
+        else:
+            # Sort by percentage held (ascending for a bottom-to-top bar chart)
+            ih = ih.sort_values(by="pctHeld", ascending=True)
 
-# Update layout
-fig_holders.update_layout(
-    title=f'Top Institutional Holders of {company_name}',
-    yaxis=dict(categoryorder='total ascending'),
-    template='plotly_dark',
-    xaxis_title='Percentage Held',
-    yaxis_title=''
-)
+            # Create horizontal bar chart
+            fig_holders = go.Figure(go.Bar(
+                x=ih["pctHeld"] * 100,  # convert fraction to %
+                y=ih["Holder"],
+                orientation="h",
+                marker_color="#85BB65"  # money green
+            ))
 
-with col9:
-    st.plotly_chart(fig_holders)
-with col7:
-    st.plotly_chart(fig_grades)
+            # Update layout
+            fig_holders.update_layout(
+                title=f"Top Institutional Holders of {company_name}",
+                yaxis=dict(categoryorder="total ascending"),
+                template="plotly_dark",
+                xaxis_title="Percentage Held",
+                yaxis_title=""
+            )
+
+            with col9:
+                st.plotly_chart(
+                    fig_holders,
+                    use_container_width=True,
+                    key=f"institutional_holders_chart_{ticker}"
+                )
+
+except Exception as e:
+    with col9:
+        st.write("Error fetching institutional holders:", str(e))
 
 #############################################################################
 ######################## POSITION SIZING CALCULATOR #########################
@@ -702,6 +734,11 @@ analyst_rating = info.get('averageAnalystRating')
 dividend_yield = info.get('dividendYield')
 current_price = info.get('currentPrice')
 days_to_cover = info.get('shortRatio')
+short_pct = info.get('shortPercentOfFloat')
+if short_pct is not None:
+    float_short = short_pct * 100
+else:
+    float_short = None  # o 0, dependiendo de lo que quieras mostrar
 # Define the labels
 position_size_metrics = [
     'Position Bias',
@@ -724,6 +761,7 @@ position_size_df.loc['Position Bias'] = position_type
 position_size_df.loc['Algorithm Signal'] = signal_data
 position_size_df.loc['Analyst Rating'] = analyst_rating
 position_size_df.loc['Days to Cover'] = f"{days_to_cover} days"
+position_size_df.loc['Float Short %'] = f"{float_short:.2f} %"
 position_size_df.loc['Dividend Yield'] = f"{dividend_yield}%"
 position_size_df.loc['Risk Amount'] = f"${round(risk_amount, 2)}"
 position_size_df.loc['Position Size'] = round(position_size, 0)
@@ -823,50 +861,84 @@ with col12:
 
 
 
-# Get earnings dates and take first 5
-earnings_dates = yf.Ticker(ticker).get_earnings_dates()
+# --- Robust earnings dates block ---
+try:
+    ed = yf.Ticker(ticker).get_earnings_dates()
 
-# Reset index to make datetime a column
-earnings_dates = earnings_dates.reset_index()
+    # Handle None or empty
+    if not isinstance(ed, pd.DataFrame) or ed.empty:
+        with col8:
+            st.write("Earnings date data not available.")
+    else:
+        # Ensure DatetimeIndex
+        if not isinstance(ed.index, pd.DatetimeIndex):
+            ed.index = pd.to_datetime(ed.index, errors="coerce")
 
-# Create new column with just the date part
-earnings_dates['Earnings Date'] = earnings_dates['Earnings Date'].dt.date
+        # Sort by date (newest first), keep last 5 entries, then reset index
+        ed = (
+            ed.sort_index(ascending=False)
+              .head(5)
+              .reset_index()
+        )
 
-# Filter out rows with missing EPS data
-df = earnings_dates.dropna(subset=['EPS Estimate', 'Reported EPS'])
+        # After reset_index(), the date column is usually named 'index' or 'Earnings Date'
+        if "Earnings Date" not in ed.columns:
+            ed = ed.rename(columns={"index": "Earnings Date"})
 
-earnings_fig = go.Figure()
+        # Make sure the date column is datetime, then keep only the date part
+        ed["Earnings Date"] = pd.to_datetime(ed["Earnings Date"], errors="coerce")
+        ed = ed.dropna(subset=["Earnings Date"])
+        ed["Earnings Date"] = ed["Earnings Date"].dt.date
 
-# EPS Estimate as hollow circles
-earnings_fig.add_trace(go.Scatter(
-    x=df['Earnings Date'],
-    y=df['EPS Estimate'],
-    mode='markers',
-    name='EPS Estimate',
-    marker=dict(symbol='circle-open', size=20, color='light blue'),
-))
+        # Filter rows where both EPS fields exist
+        needed_cols = ["EPS Estimate", "Reported EPS"]
+        missing = [c for c in needed_cols if c not in ed.columns]
+        if missing:
+            with col8:
+                st.write("Earnings fields not available:", ", ".join(missing))
+        else:
+            df = ed.dropna(subset=needed_cols)
 
-# Reported EPS as crosses
-earnings_fig.add_trace(go.Scatter(
-    x=df['Earnings Date'],
-    y=df['Reported EPS'],
-    mode='markers',
-    name='Reported EPS',
-    marker=dict(symbol='x', size=12, color='green'),
-))
+            if df.empty:
+                with col8:
+                    st.write("No EPS estimate/reported data to plot.")
+            else:
+                earnings_fig = go.Figure()
 
-earnings_fig.update_layout(
-    title=f'{company_name} EPS Estimates vs Reported EPS',
-    xaxis_title='Earnings Date',
-    yaxis_title='EPS',
-    template='plotly_dark',
-    plot_bgcolor='#1e1e1e',
-    paper_bgcolor='#1e1e1e',
-    font=dict(color='white')
-)
+                # EPS Estimate: hollow circles
+                earnings_fig.add_trace(go.Scatter(
+                    x=df["Earnings Date"],
+                    y=df["EPS Estimate"],
+                    mode="markers",
+                    name="EPS Estimate",
+                    marker=dict(symbol="circle-open", size=18, color="#87CEFA"),  # lightblue
+                ))
 
-with col8:
-    st.plotly_chart(earnings_fig)
+                # Reported EPS: crosses
+                earnings_fig.add_trace(go.Scatter(
+                    x=df["Earnings Date"],
+                    y=df["Reported EPS"],
+                    mode="markers",
+                    name="Reported EPS",
+                    marker=dict(symbol="x", size=12, color="#00B86B"),
+                ))
+
+                earnings_fig.update_layout(
+                    title=f"{company_name} EPS Estimates vs Reported EPS",
+                    xaxis_title="Earnings Date",
+                    yaxis_title="EPS",
+                    template="plotly_dark",
+                    plot_bgcolor="#1e1e1e",
+                    paper_bgcolor="#1e1e1e",
+                    font=dict(color="white")
+                )
+
+                with col8:
+                    st.plotly_chart(earnings_fig, use_container_width=True, key=f"earnings_scatter_{ticker}")
+
+except Exception as e:
+    with col8:
+        st.write("Error fetching earnings dates:", str(e))
 
 
 #############################################################################
